@@ -959,7 +959,7 @@ Question: What age group has, on average, the greatest sentence for tax fraud? W
 
 ## Row {height = 10%}
 
-This page focuses on data from the SOI Tax Stats – Criminal Investigation Program, by Status or Disposition from 2010 to 2023. The first waffle chart displays raw counts, showing the total number of IRS CI actions over time. This shows the true volume and scale of enforcement activity to show which years had more investigative or prosecutorial effort. The second waffle chart presents percent-of-year data that compares the proportion of each case disposition within a given year. This shows shifts in the types of actions pursued, such as increases in incarcerations or declines in prosecutions, regardless of overall volume.
+This page focuses on data from the SOI Tax Stats – Criminal Investigation division, by Status or Disposition from 2010 to 2023. The first chart displays raw counts, showing the total number of IRS CI actions over time. This shows the true volume and scale of enforcement activity to show which years had more investigative or prosecutorial effort. The second chart presents percent-of-year data that compares the proportion of each case disposition within a given year. This shows shifts in the types of actions pursued, such as increases in incarcerations or declines in prosecutions, regardless of overall volume.
 
 Question: How has conviction, incarceration, or prosecution rates from the IRS changed over time?
 

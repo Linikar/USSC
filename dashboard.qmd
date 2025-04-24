@@ -4,6 +4,7 @@ logo: img/seal.png
 format: dashboard
 theme: custom.scss
 editor: source
+navbar: false
 ---
 
 ```{r setup, warning=F, message=F, include=F}

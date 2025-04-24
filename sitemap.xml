@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://Linikar.github.io/USSC/about.html</loc>
-    <lastmod>2025-04-24T05:20:37.515Z</lastmod>
+    <loc>https://Linikar.github.io/USSC/index.html</loc>
+    <lastmod>2025-04-24T05:26:48.517Z</lastmod>
   </url>
   <url>
     <loc>https://Linikar.github.io/USSC/dashboard.html</loc>
-    <lastmod>2025-04-24T05:20:37.516Z</lastmod>
+    <lastmod>2025-04-24T05:26:48.511Z</lastmod>
+  </url>
+  <url>
+    <loc>https://Linikar.github.io/USSC/about.html</loc>
+    <lastmod>2025-04-24T05:26:48.510Z</lastmod>
   </url>
 </urlset>

@@ -1,0 +1,22 @@
+Year,Type of Crime,Mean Months,Median Months,N
+2020,Arson,18,60,48
+2020,Assault,64,36,618
+2020,Bribery/Corruption,15,8,240
+2020,Burglary/Trespass,19,15,39
+2020,Commercialized Vice,20,12,53
+2020,Drug Possession,3,0,438
+2020,Environmental,3,0,137
+2020,Extortion/Racketeering,23,12,120
+2020,Food and Drug,7,4,33
+2020,Forgery/Counter/Copyright,7,12,198
+2020,Individual Rights,55,24,70
+2020,Kidnapping,195,168,66
+2020,Manslaughter,56,47,38
+2020,Money Laundering,58,34,880
+2020,Murder,255,228,294
+2020,National Defense,38,24,165
+2020,Obscenity/Other Sex Offenses,19,18,318
+2020,Sexual Abuse,201,180,881
+2020,Stalking/Harassing,29,21,225
+2020,Tax,15,12,366
+2020,Other,2,0,675

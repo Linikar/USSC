@@ -1,0 +1,20 @@
+Year,Type of Crime,Mean Months,Median Months,N
+2022,ration of Justice,12,8,651
+2022,Antitrust,5,0,8
+2022,Arson,45,42,106
+2022,Assault,64,42,850
+2022,Bribery/Corruption,19,12,360
+2022,Burglary/Trespass,18,10,112
+2022,Drug Possession,2,0,296
+2022,Environmental,4,0,153
+2022,Extortion/Racketeering,61,27,121
+2022,Individual Rights,4,18,92
+2022,Kidnapping,184,160,128
+2022,Manslaughter,86,68,80
+2022,Murder,261,240,410
+2022,National Defense,35,15,180
+2022,Obscenity/Other Sex Offenses,22,18,344
+2022,Prison Offenses,12,9,499
+2022,Stalking/Harassing,26,18,266
+2022,Tax,14,9,496
+2022,Other,3,0,167

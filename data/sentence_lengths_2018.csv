@@ -1,0 +1,18 @@
+Year,Type of Crime,Mean Months,Median Months,N
+2018,Administration of Justice,13,9,730
+2018,Antitrust,5,1,33
+2018,Arson,65,48,55
+2018,Assault,56,33,692
+2018,Bribery/Corruption,23,15,317
+2018,Commercialized Vice,17,8,146
+2018,Extortion/Racketeering,39,27,288
+2018,Forgery/Counter/Copyright,14,12,298
+2018,Individual Rights,27,12,6
+2018,Kidnapping,179,138,106
+2018,Manslaughter,65,40,61
+2018,Murder,291,292,318
+2018,National Defense,52,30,204
+2018,Obscenity/Other Sex Offenses,19,18,384
+2018,Prison Offenses,12,1,568
+2018,Stalking/Harassing,30,24,213
+2018,Tax,17,12,377

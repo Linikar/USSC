@@ -1,0 +1,32 @@
+TYPE OF CRIME,TOTAL,MALE_N,MALE_%,FEMALE_N,FEMALE_%
+TOTAL,64456,56559,87.7,7897,12.3
+Administration of Justice,540,378,70.0,162,30.0
+Antitrust,11,8,72.7,3,27.3
+Arson,48,43,89.6,5,10.4
+Assault,617,558,90.4,59,9.6
+Bribery/Corruption,240,181,75.4,59,24.6
+Burglary/Trespass,39,32,82.1,7,17.9
+Child Pornography,1023,1020,99.7,3,0.3
+Commercialized Vice,53,36,67.9,17,32.1
+Drug Possession,435,332,76.3,103,23.7
+Drug Trafficking,16390,13535,82.6,2855,17.4
+Environmental,133,120,90.2,13,9.8
+Extortion/Racketeering,120,101,84.2,19,15.8
+Firearms,7538,7240,96.0,298,4.0
+Food and Drug,33,21,63.6,12,36.4
+Forgery/Counter/Copyright,198,155,78.3,43,21.7
+Fraud/Theft/Embezzlement,4821,3263,67.7,1558,32.3
+Immigration,26498,24589,92.8,1909,7.2
+Individual Rights,70,60,85.7,10,14.3
+Kidnapping,66,59,89.4,7,10.6
+Manslaughter,38,32,84.2,6,15.8
+Money Laundering,880,667,75.8,213,24.2
+Murder,294,275,93.5,19,6.5
+National Defense,164,141,86.0,23,14.0
+Obscenity/Other Sex Offenses,318,311,97.8,7,2.2
+Prison Offenses,457,420,91.9,37,8.1
+Robbery,1316,1197,91.0,119,9.0
+Sexual Abuse,881,813,92.3,68,7.7
+Stalking/Harassing,225,209,92.9,16,7.1
+Tax,366,268,73.2,98,26.8
+Other,644,495,76.9,149,23.1

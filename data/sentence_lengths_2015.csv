@@ -1,0 +1,22 @@
+Year,Type of Crime,Mean Months,Median Months,N
+2015,Murder,287,300,93
+2015,Manslaughter,78,60,52
+2015,Kidnapping/Hostage Taking,235,240,43
+2015,Sexual Abuse,127,120,528
+2015,Assault,29,15,157
+2015,Robbery,7,63,739
+2015,Arson,82,60,59
+2015,Drugs - Communication Facility,28,24,316
+2015,Burglary/B&E,25,4,36
+2015,Auto Theft,84,42,62
+2015,Embezzlement,10,1,342
+2015,Forgery/Counterfeiting,16,12,511
+2015,Bribery,27,18,27
+2015,Tax,13,10,561
+2015,Money Laundering,29,18,669
+2015,Gambling/Lottery,5,4,171
+2015,Administration of Justice Offenses,7,12,1174
+2015,Environmental/Wildlife,4,0,158
+2015,National Defense,60,36,100
+2015,Antitrust,42,15,15
+2015,Food & Drug,6,0,7

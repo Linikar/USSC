@@ -1,0 +1,1371 @@
+---
+title: "USSC Dashboard"
+logo: img/seal.png
+format: dashboard
+theme: custom.scss
+editor: source
+navbar: false
+---
+
+```{r setup, warning=F, message=F, include=F}
+# this line specifies options for default options for all R Chunks
+knitr::opts_chunk$set(echo=F)
+
+# suppress scientific notation
+options(scipen=100)
+
+# install helper package that loads and installs other packages, if needed
+if (!require("pacman")) install.packages("pacman", repos = "http://lib.stat.cmu.edu/R/CRAN/")
+
+# install and load required packages
+# pacman should be first package in parentheses and then list others
+pacman::p_load(pacman,tidyverse, magrittr, tidyquant, ggthemes, 
+               RColorBrewer, highcharter, kableExtra, data.table, geomtextpath, readxl, plotly)
+
+# verify packages
+#p_loaded()
+
+
+```
+
+```{r} 
+
+# Create a single dataframe of Tax sentencing counts from all CSVs
+tax_data <- list.files("data", pattern = "Sentenced_Individuals_FY.*\\.csv$", full.names = TRUE) |>
+  map_dfr(\(file) {
+    read_csv(file, show_col_types = FALSE) |>
+      rename(`TYPE OF CRIME` = 1) |>
+      filter(`TYPE OF CRIME` == "Tax") |>
+      select(N) |>
+      mutate(Year = str_extract(file, "FY\\d{4}") |> str_remove("FY") |> as.numeric())
+  }) |>
+  arrange(Year) |>
+  mutate(N = as.numeric(N))
+
+```
+
+```{r}
+# Files for average sentence length
+files <- list.files("data", pattern = "sentence_lengths_\\d{4}\\.csv$", full.names = TRUE)
+
+# Read, clean, and pull only Tax + Mean Months + Year
+avg_sentence_data <- map_dfr(files, \(file) {
+  df <- read_csv(file, show_col_types = FALSE)
+
+# Standardize column name if needed
+  if ("TYPE OF CRIME" %in% names(df)) {
+    df <- df |> rename(`Type of Crime` = `TYPE OF CRIME`)
+  }
+
+# Filter to Tax only and pull year
+  df |>
+    filter(`Type of Crime` == "Tax") |>
+    mutate(
+      Year = str_extract(file, "\\d{4}") |> as.numeric(),
+      `Mean Months` = as.numeric(`Mean Months`)
+    ) |>
+    select(Year, `Mean Months`)
+}) |>
+  arrange(Year)
+
+```
+
+# Home
+
+![](img/cover.png)
+
+# Sentencing by Crime
+
+## Row {height = 10%}
+
+Tax crimes tend to receive less prison time than violent offenses but are more likely to result in probation. They rarely end with fines alone. Overall, tax offenses are treated as less dangerous but still serious, often leading to probation rather than imprisonment or just a fine.
+
+Question: How does the sentencing rate of tax fraud compare to other types of crimes?
+
+## Row {height = 90%}
+
+```{r}
+#| include: false
+#| warning: false
+#| message: false
+#| echo: false
+df <- read_excel("data/sentence_length_by_crime_fy2024.xlsx") |> 
+  filter(`Type of Crime` != "TOTAL") |> 
+  drop_na() |> 
+  mutate(TaxFlag = ifelse(`Type of Crime` == "Tax", "Tax", "Other"))
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 6
+ggplot(df, aes(x = reorder(`Type of Crime`, `Mean Months`), y = `Mean Months`, fill = TaxFlag)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = c("Tax" = "#971D2C", "Other" = "#1B375D")) +
+  labs(title = "Mean Sentence Length by Crime", x = "Crime Type", y = "Mean Months") +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "none",
+    text=element_text(family="serif")
+  )
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 6
+ggplot(df, aes(x = reorder(`Type of Crime`, `Median Months`), y = `Median Months`, fill = TaxFlag)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = c("Tax" = "#971D2C", "Other" = "#1B375D")) +
+  labs(title = "Median Sentence Length by Crime", x = "Crime Type", y = "Median Months") +
+  theme_minimal(base_size = 14)+
+  theme(
+    legend.position = "none",
+    text=element_text(family="serif")
+  )
+```
+
+# Prison Sentencing
+
+## Row {height = 10%}
+
+Tax crimes receive much shorter sentences than most other crimes, both in average and median length. This highlights that tax offenses are generally treated as less severe than violent or high-risk crimes.
+
+Question: How are tax fraud charges punished compared to other types of crimes?
+
+## Row {height = 90%}
+
+```{r}
+#| include: false
+#| warning: false
+#| message: false
+#| echo: false
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+
+crime_data <- read_excel("data/sentence_type_by_crime_fy2024.xlsx")
+selected_crimes <- c(
+  "Tax", "Assault", "Robbery", "Sexual Abuse", "Fraud/Theft/Embezzlement",
+  "Money Laundering", "Drug Trafficking", "Drug Possession",
+  "Firearms", "Child Pornography", "Environmental"
+)
+
+crime_plot_data <- crime_data |> 
+  filter(`Type of Crime` %in% selected_crimes) |> 
+  rename(Crime = `Type of Crime`)
+
+plot_sentence_type <- function(column_name, title_text) {
+  ggplot(crime_plot_data, aes(x = reorder(Crime, .data[[column_name]]), y = .data[[column_name]], fill = Crime == "Tax")) +
+    geom_col() +
+    coord_flip() +
+    scale_fill_manual(values = c("TRUE" = "#971D2C", "FALSE" = "#1B375D"), guide = "none") +
+    labs(
+      title = title_text,
+      x = "Crime Type",
+      y = "Percentage (%)"
+    ) +
+    theme_minimal(base_size = 14)+
+    theme(
+      text=element_text(family="serif")
+    )
+}
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 6
+plot_sentence_type("Prison Only (%)", "Prison Only Rate: Tax vs Selected Crimes")
+
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 6
+plot_sentence_type("Probation Only (%)", "Probation Only Rate: Tax vs Selected Crimes")
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 6
+plot_sentence_type("Fine Only (%)", "Fine Only Rate: Tax vs Selected Crimes")
+```
+
+
+# Trends in Federal Tax Fraud Over Time
+
+## Row
+
+This page provides an overview of federal tax fraud sentencing patterns in the United States from 2014 to 2024, focusing on both the number of individuals sentenced and the average length of prison sentences. Through interactive line charts, users can observe a notable decline in sentencing rates leading up to 2018, followed by fluctuations in recent years. Similarly, the average sentence length remained stable through 2017 before rising sharply in 2018 and varying slightly thereafter. These visualizations offer insight into how enforcement and sentencing practices have evolved over the past decade.
+
+## Row
+
+```{r}
+
+# Interactive line chart for Tax fraud sentencing counts
+highchart() |>
+  hc_title(text = "Individuals Sentenced for Tax Fraud") |>
+  hc_xAxis(title = list(text = "Fiscal Year"), categories = tax_data$Year) |>
+  hc_yAxis(title = list(text = "Number Sentenced")) |>
+  hc_add_series(name = "Tax Fraud Sentencings", data = tax_data$N, type = "line") |>
+  hc_tooltip(pointFormat = "Year: {point.category}<br>Sentenced: {point.y}") |>
+  hc_colors("#5A708E")
+
+```
+
+```{r}
+
+#Interactive line chart
+highchart() |>
+  hc_title(text = "Average Prison Sentence for Tax Fraud") |>
+  hc_xAxis(title = list(text = "Fiscal Year"), categories = avg_sentence_data$Year) |>
+  hc_yAxis(title = list(text = "Average Sentence (Months)")) |>
+  hc_add_series(name = "Average Sentence (Months)", data = avg_sentence_data$`Mean Months`, type = "line") |>
+  hc_tooltip(pointFormat = "Year: {point.category}<br>Avg. Sentence: {point.y} months") |>
+  hc_colors("#EEB4B3")
+
+```
+
+## Row
+
+Questions answered from this data: 
+
+- How has tax fraud sentencing rates changed overtime?
+
+- What is the average length of prison sentences for tax fruad overtime?
+
+# Sentencing by Gender and Race
+
+```{r 1, warning=F, message=F, echo=F, include=F}
+Gender2014 <- read.csv("data/Gender 2014.csv")
+Gender2015 <- read.csv("data/Gender 2015.csv")
+Gender2016 <- read.csv("data/Gender 2016.csv")
+Gender2017 <- read.csv("data/Gender 2017.csv")
+Gender2018 <- read.csv("data/Gender 2018.csv")
+Gender2019 <- read.csv("data/Gender 2019.csv")
+Gender2020 <- read.csv("data/Gender 2020.csv")
+Gender2021 <- read.csv("data/Gender 2021.csv")
+Gender2022 <- read.csv("data/Gender 2022.csv")
+Gender2023 <- read.csv("data/Gender 2023.csv")
+Gender2024 <- read.csv("data/Gender 2024.csv")
+
+Gender2013 <- read.csv("data/Gender 2013.csv")
+Gender2012 <- read.csv("data/Gender 2012.csv")
+Gender2011 <- read.csv("data/Gender 2011.csv")
+Gender2010 <- read.csv("data/Gender 2010.csv")
+Gender2009 <- read.csv("data/Gender 2009.csv")
+Gender2008 <- read.csv("data/Gender 2008.csv")
+Gender2007 <- read.csv("data/Gender 2007.csv")
+```
+
+```{r 2, warning=F, message=F, echo=F, include=F}
+Race2014 <- read.csv("data/Race 2014.csv")
+Race2015 <- read.csv("data/Race 2015.csv")
+Race2016 <- read.csv("data/Race 2016.csv")
+Race2017 <- read.csv("data/Race 2017.csv")
+Race2018 <- read.csv("data/Race 2018.csv")
+Race2019 <- read.csv("data/Race 2019.csv")
+Race2020 <- read.csv("data/Race 2020.csv")
+Race2021 <- read.csv("data/Race 2021.csv")
+Race2022 <- read.csv("data/Race 2022.csv")
+Race2023 <- read.csv("data/Race 2023.csv")
+Race2024 <- read.csv("data/Race 2024.csv")
+
+
+Race2013 <- read.csv("data/Race 2013.csv")
+Race2012 <- read.csv("data/Race 2012.csv")
+Race2011 <- read.csv("data/Race 2011.csv")
+Race2010 <- read.csv("data/Race 2010.csv")
+Race2009 <- read.csv("data/Race 2009.csv")
+Race2008 <- read.csv("data/Race 2008.csv")
+Race2007 <- read.csv("data/Race 2007.csv")
+
+
+```
+
+```{r 3, warning=F, message=F, echo=F, include=F}
+Gender2014s <- Gender2014[20,] |> 
+  mutate(year = ("2014-12-31"))
+Gender2014s$year <- as.Date("2014-12-31")
+         
+Gender2015s <- Gender2015[20,] |> 
+  mutate(year = "2015-12-31")
+Gender2015s$year <- as.Date("2015-12-31")
+
+Gender2016s <- Gender2016[20,] |> 
+  mutate(year = "2016-12-31")
+Gender2016s$year <- as.Date("2016-12-31")
+
+Gender2017s <- Gender2017[20,] |> 
+  mutate(year = "2017-12-31")
+Gender2017s$year <- as.Date("2017-12-31")
+
+Gender2018s <- Gender2018[30,] |> 
+  mutate(year = "2018-12-31")
+Gender2018s$year <- as.Date("2018-12-31")
+
+Gender2019s <- Gender2019[30,] |> 
+  mutate(year = "2019-12-31")
+Gender2019s$year <- as.Date("2019-12-31")
+
+Gender2020s <- Gender2020[30,] |> 
+  mutate(year = "2020-12-31")
+Gender2020s$year <- as.Date("2020-12-31")
+
+Gender2021s <- Gender2021[30,] |> 
+  mutate(year = "2021-12-31")
+Gender2021s$year <- as.Date("2021-12-31")
+
+Gender2022s <- Gender2022[30,] |> 
+  mutate(year = "2022-12-31")
+Gender2022s$year <- as.Date("2022-12-31")
+
+Gender2023s <- Gender2023[30,] |> 
+  mutate(year = "2023-12-31")
+Gender2023s$year <- as.Date("2023-12-31")
+
+Gender2024s <- Gender2024[30,] |> 
+  mutate(year = "2024-12-31")
+Gender2024s$year <- as.Date("2024-12-31")
+
+
+
+Gender2013s <- Gender2013[19,] |> 
+  mutate(year = "2013-12-31")
+Gender2013s$year <- as.Date("2013-12-31")
+
+Gender2012s <- Gender2012[20,] |> 
+  mutate(year = "2012-12-31") |> 
+  rename(MALE_N = Male.N, FEMALE_N = Female.N)
+Gender2012s$year <- as.Date("2012-12-31") 
+
+Gender2011s <- Gender2011[19,] |> 
+  mutate(year = "2011-12-31") |> 
+  rename(MALE_N = MALE.N, FEMALE_N = FEMALE.N)
+Gender2011s$year <- as.Date("2011-12-31")
+
+Gender2010s <- Gender2010[19,] |> 
+  mutate(year = "2010-12-31") |> 
+  rename(MALE_N = Male.N, FEMALE_N = Female.N)
+Gender2010s$year <- as.Date("2010-12-31")
+
+Gender2009s <- Gender2009[19,] |> 
+  mutate(year = "2009-12-31") |> 
+  rename(MALE_N = Male.N, FEMALE_N = Female.N)
+Gender2009s$year <- as.Date("2009-12-31")
+
+Gender2008s <- Gender2008[20,] |> 
+  mutate(year = "2008-12-31")
+Gender2008s$year <- as.Date("2008-12-31")
+
+Gender2007s <- Gender2007[19,] |> 
+  mutate(year = "2007-12-31") |> 
+  rename(MALE_N = MALE.N, FEMALE_N = FEMALE.N)
+Gender2007s$year <- as.Date("2007-12-31")
+
+
+GenderTF <- Gender2014s |> 
+  full_join(Gender2015s) |> 
+  full_join(Gender2017s) |> 
+  full_join(Gender2016s) |> 
+  full_join(Gender2018s) |> 
+  full_join(Gender2019s) |> 
+  full_join(Gender2020s) |> 
+  full_join(Gender2021s) |> 
+  full_join(Gender2022s) |> 
+  full_join(Gender2023s) |> 
+  full_join(Gender2024s) |> 
+  full_join(Gender2013s) |> 
+  full_join(Gender2012s) |> 
+  full_join(Gender2011s) |> 
+  full_join(Gender2010s) |> 
+  full_join(Gender2009s) |> 
+  full_join(Gender2008s) |> 
+  full_join(Gender2007s)
+  
+
+GenderTF <- GenderTF |> 
+  select(2:7) |> 
+  mutate(Type_of_crime = "Tax")
+
+Gender.xts <- xts(x = GenderTF[,c(2,4)], order.by = GenderTF$year)
+
+```
+
+```{r 4, warning=F, message=F, echo=F, include=F}
+Race2007s <- Race2007[20,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2007-12-31")) |> 
+  rename(White_N = White.N, 
+         Black_N = Black.N, 
+         Hispanic_N = Hispanic.N, 
+         Other_N = Other.N)
+
+Race2008s <- Race2008[20,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2008-12-31")) |> 
+  rename(White_N = White.N, 
+         Black_N = Black.N, 
+         Hispanic_N = Hispanic.N, 
+         Other_N = Other.N)
+
+Race2009s <- Race2009[20,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2009-12-31")) |> 
+  rename(White_N = White.N, 
+         Black_N = Black.N, 
+         Hispanic_N = Hispanic.N, 
+         Other_N = Other.N)
+
+Race2010s <- Race2010[20,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2010-12-31")) |> 
+  rename(White_N = White.N, 
+         Black_N = Black.N, 
+         Hispanic_N = Hispanic.N, 
+         Other_N = Other.N)
+
+Race2011s <- Race2011[20,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2011-12-31")) |> 
+  rename(White_N = White.N, 
+         Black_N = Black.N, 
+         Hispanic_N = Hispanic.N, 
+         Other_N = Other.N)
+  
+Race2012s <- Race2012[19,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2012-12-31")) |> 
+  rename(White_N = White.N, 
+         Black_N = Black.N, 
+         Hispanic_N = Hispanic.N, 
+         Other_N = Other.N)
+
+Race2013s <- Race2013[20,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2013-12-31")) |> 
+  rename(White_N = White.N, 
+         Black_N = Black.N, 
+         Hispanic_N = Hispanic.N, 
+         Other_N = Other.N)
+
+Race2014s <- Race2014[20,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2014-12-31")) |> 
+  rename(White_N = WHITE_N, 
+         Black_N = BLACK_N, 
+         Hispanic_N = HISPANIC_N, 
+         Other_N = OTHER_N)
+
+Race2015s <- Race2015[19,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2015-12-31")) |> 
+  rename(White_N = WHITE_N, 
+         Black_N = BLACK_N, 
+         Hispanic_N = HISPANIC_N, 
+         Other_N = OTHER_N)
+
+Race2016s <- Race2016[19,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2016-12-31")) |> 
+  rename(White_N = WHITE.N, 
+         Black_N = BLACK.N, 
+         Hispanic_N = HISPANIC.N, 
+         Other_N = OTHER.N)
+
+Race2017s <- Race2017[20,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2017-12-31")) |> 
+  rename(White_N = WHITE.N, 
+         Black_N = BLACK.N, 
+         Hispanic_N = HISPANIC.N, 
+         Other_N = OTHER.N)
+
+Race2018s <- Race2018[30,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2018-12-31")) |> 
+  rename(White_N = WHITE_N, 
+         Black_N = BLACK_N, 
+         Hispanic_N = HISPANIC_N, 
+         Other_N = OTHER_N)
+
+Race2019s <- Race2019[30,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2019-12-31")) |> 
+  rename(White_N = WHITE_N, 
+         Black_N = BLACK_N, 
+         Hispanic_N = HISPANIC_N, 
+         Other_N = OTHER_N)
+
+Race2020s <- Race2020[30,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2020-12-31")) |> 
+  rename(White_N = WHITE_N, 
+         Black_N = BLACK_N, 
+         Hispanic_N = HISPANIC_N, 
+         Other_N = OTHER_N)
+
+Race2021s <- Race2021[30,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2021-12-31")) |> 
+  rename(White_N = WHITE_N, 
+         Black_N = BLACK_N, 
+         Hispanic_N = HISPANIC_N, 
+         Other_N = OTHER_N)
+
+Race2022s <- Race2022[30,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2022-12-31")) |> 
+  rename(White_N = WHITE_N, 
+         Black_N = BLACK_N, 
+         Hispanic_N = HISPANIC_N, 
+         Other_N = OTHER_N)
+
+Race2023s <- Race2023[30,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2023-12-31")) |> 
+  rename(White_N = WHITE_N, 
+         Black_N = BLACK_N, 
+         Hispanic_N = HISPANIC_N, 
+         Other_N = OTHER_N)
+
+Race2024s <- Race2024[30,c(1,3,5,7,9)] |> 
+  mutate(Year = as.Date("2024-12-31")) |> 
+  rename(White_N = WHITE_N, 
+         Black_N = BLACK_N, 
+         Hispanic_N = HISPANIC_N, 
+         Other_N = OTHER_N)
+
+RaceTF <- Race2007s |> 
+  full_join(Race2008s) |> 
+  full_join(Race2009s) |> 
+  full_join(Race2010s) |> 
+  full_join(Race2011s) |> 
+  full_join(Race2012s) |> 
+  full_join(Race2013s) |> 
+  full_join(Race2014s) |> 
+  full_join(Race2015s) |> 
+  full_join(Race2016s) |> 
+  full_join(Race2017s) |> 
+  full_join(Race2018s) |> 
+  full_join(Race2019s) |> 
+  full_join(Race2020s) |> 
+  full_join(Race2021s) |> 
+  full_join(Race2022s) |> 
+  full_join(Race2023s) |> 
+  full_join(Race2024s)
+
+RaceTF <- RaceTF |> 
+  select(2:6) |> 
+  mutate(Type_of_crime = "Tax")
+
+Race.xts <- xts(x = RaceTF[,c(1:4)], order.by = RaceTF$Year) 
+  
+num_highest <- max(RaceTF$White_N)
+num_highestg <- max(GenderTF$MALE_N)
+
+```
+
+## Row {height="15%"}
+
+This page provides an overview of tax fraud trends by gender and race from 2007 to 2024 by using interactive Highchart plots. The data reveals a significant gender disparity, with male cases consistently outnumbering female cases. Racially, white individuals historically show the highest numbers, though cases among Black and Hispanic individuals have increased in recent years. The number of men sentenced was the largest, reaching `r num_highest`. Among the races, the number of white people was the largest, reaching `r num_highestg`.Data from [United States Sentencing Commision](https://www.ussc.gov/research/data-reports/quarter/quarterly-sentencing-updates).
+
+Question: How have gender and racial disparities in tax fraud convictions evolved in the United States from 2007 to 2024?
+
+## Row {height="55%"}
+
+```{r 5, warning=F, message=F, echo=F}
+
+(GenderHc <- hchart(Gender.xts$MALE_N, name = "Male", color = "#1B375D") |> 
+  hc_add_series(Gender.xts$FEMALE_N, name = "Female", color = "#971D2C"))
+
+```
+
+```{r 6, warning=F, message=F, echo=F}
+
+(RaceHc <- hchart(Race.xts$White_N, name = "White", color = "#971D2C") |> 
+  hc_add_series(Race.xts$Black_N, name = "Balck", color = "#1B375D") |> 
+  hc_add_series(Race.xts$Hispanic_N, name = "Hispanic", color = "#5A708E") |> 
+  hc_add_series(Race.xts$Other_N, name = "Other", color = "#EEB4B3"))
+```
+
+
+## Row {Height="30%"}
+
+```{r}
+GenderKable <- GenderTF |> 
+  mutate(Year = year) |> 
+  select(Year,MALE_N,FEMALE_N) |> 
+  rename("Male Number" = "MALE_N", "Female number" = "FEMALE_N")
+
+kable(GenderKable) |> kable_styling(full_width = F)
+```
+
+```{r}
+RaceKable <- RaceTF |> 
+  select(Year, White_N, Black_N, Hispanic_N, Other_N) |> 
+  rename("White Number" = "White_N", 
+         "Black Number" = "Black_N",
+         "Hispanic Number" = "Hispanic_N",
+         "Other Number" = "Other_N")
+
+kable(RaceKable) |> kable_styling(full_width = F)
+```
+
+# Sentencing by State
+
+## Row
+
+### Column {width="70%"}
+
+```{r}
+
+# install.packages("plotly")
+library(plotly)
+
+# Load your data
+state_data <- read_csv("data/state_sentence.csv")
+
+# Add abbreviations
+state_data <- state_data %>%
+  mutate(state_abbr = state.abb[match(state, state.name)])
+
+# Plot with bright, reversed "Blues" scale (light = low, dark = high)
+plot_geo(state_data, locationmode = 'USA-states') %>%
+  add_trace(
+    locations = ~state_abbr,
+    z = ~num_tax_sentence,
+    text = ~paste(state_abbr, "<br>Tax Sentences:", num_tax_sentence),
+    colorscale = "Blues",  # Clean, bright gradient
+    reversescale = TRUE,   # Makes higher values darker blue
+    colorbar = list(title = "Tax Sentences"),
+    type = 'choropleth',
+    zmin = min(state_data$num_tax_sentence, na.rm = TRUE),
+    zmax = max(state_data$num_tax_sentence, na.rm = TRUE)
+  ) %>%
+  layout(
+  geo = list(scope = 'usa'),
+  title = list(
+    text = paste0(
+      "Number of Tax Sentence by Different States 2024"
+    ),
+    x = 0.5,
+    xanchor = "center",
+    y= 0.9
+  ),
+  annotations = list(
+    list(
+      text = "Data Source: https://www.ussc.gov/research/data-reports/geography/2024-federal-sentencing-statistics",
+      xref = "paper", yref = "paper",
+      x = 0, y = 0,
+      showarrow = FALSE,
+      font = list(size = 11, color = "gray")
+    )
+  )
+)
+
+```
+
+
+### Column {width="30%"}
+
+#### Row
+
+In 2024, federal tax sentences were most concentrated in high-population states like New York, California, Texas, and Florida. Less populated states, especially in the Midwest and Mountain West, saw few or no cases. The distribution suggests that tax enforcement aligns closely with economic activity and population density.
+
+Question: What states earn the highest number of convictions of tax fraud?
+
+#### Row
+```{r}
+full_state <- state_data |>
+  select(state, num_tax_sentence)
+  
+kable(full_state) |> kable_styling(full_width = F) 
+```
+
+#### Row
+
+Information on [2024 Federal Sentencing Statistics](https://www.ussc.gov/research/data-reports/geography/2024-federal-sentencing-statistics)
+
+# Sentencing by Region/Age/Education
+
+## Row {height=75%}
+
+```{r Data Management for Page X, Graph 1}
+opafy23 <- fread("data/CSV1.csv") |> 
+  filter(OFFGUIDE == 16 | OFFGUIDE == 29, LOSS1 != 9999999997)|> 
+  mutate(SENTYEARS = SENTTCAP / 12,
+         districtF = factor(DISTRICT,
+                            levels <- c("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "90", "91", "93", "94", "95", "96"),
+                            labels <- c("ME", "MA", "NH", "RI", "PR", "CT", "NY N", 
+                      "NY E", "NY S", "NY W", "VT", "DE", "NJ", "PA E", 
+                      "PA M", "PA W", "MD", "NC E", "NC M", "NC W", 
+                      "SC", "VA E", "VA W", "WV N", "WV S", 
+                      "AL N", "AL M", "AL S", "FL N", "FL M", "FL S", 
+                      "GA N", "GA M", "GA S", "LA E", "LA W", "MS N", 
+                      "MS S", "TX N", "TX E", "TX S", "TX W", "KY E", 
+                      "KY W", "MI E", "MI W", "OH N", "OH S", "TN E", 
+                      "TN M", "TN W", "IL N", "IL C", "IL S", "IN N", 
+                      "IN S", "WI E", "WI W", "AR E", "AR W", "IA N", 
+                      "IA S", "MN", "MO E", "MO W", "NE", "ND", "SD", 
+                      "AZ", "CA N", "CA E", "CA C", "CA S", "HI", 
+                      "ID", "MT", "NV", "OR", "WA E", "WA W", "CO", "KS", 
+                      "NM", "OK N", "OK E", "OK W", "UT", "WY", "DC", 
+                      "VI", "GU", "MP", "AK", "LA M"))
+         ) |> 
+  group_by(districtF, DISTRICT)|> 
+  summarise(average_sentence = mean(SENTYEARS, na.rm=T),
+            average_loss = mean(LOSS1, na.rm=T)
+  ) |> 
+  ungroup()|> 
+  mutate(
+    REGION = case_when(
+          # Northeast
+          districtF %in% c("ME", "MA", "NH", "RI", "CT", "NY N", "NY E", "NY S", "NY W", "VT", "NJ", "PA E", "PA M", "PA W") ~ "Northeast",
+          # Midwest
+          districtF %in% c("OH N", "OH S", "MI E", "MI W", "IN N", "IN S", "IL N", "IL C", "IL S", "WI E", "WI W", "MN", "IA N", "IA S", "MO E", "MO W", "ND", "SD", "NE", "KS") ~ "Midwest",
+          # West
+          districtF %in% c("MT", "ID", "WY", "CO", "UT", "NM", "AZ", "NV") ~ "West",
+          # South
+          districtF %in% c("DE", "MD", "DC", "VA E", "VA W", "WV N", "WV S", "NC E", "NC M", "NC W", "SC", "GA N", "GA M", "GA S", "FL N", "FL M", "FL S", "AL N", "AL M", "AL S", "MS N", "MS S", "LA E", "LA W", "LA M", "TX N", "TX E", "TX S", "TX W", "AR E", "AR W", "OK N", "OK E", "OK W", "KY E", "KY W", "TN E", "TN M", "TN W") ~ "South",
+          # Pacific
+          districtF %in% c("CA N", "CA E", "CA C", "CA S", "HI", "WA E", "WA W", "OR", "AK") ~ "Pacific",
+          #Caribbean
+          districtF %in% c("PR", "GU")~"Caribbean"),
+    REGIONF = factor(REGION)
+  ) |> 
+  arrange(REGION, desc(average_sentence)) |> 
+  slice(1:50) |> 
+  mutate(
+    id=seq(1:50)
+  )
+
+
+
+
+
+empty_bar <- 4
+to_add <- data.frame( matrix(NA, empty_bar*nlevels(opafy23$REGIONF), ncol(opafy23)) )
+colnames(to_add) <- colnames(opafy23)
+to_add$REGIONF <- rep(levels(opafy23$REGIONF), each=empty_bar)
+opafy23 <- rbind(opafy23, to_add)
+
+extra_end <- data.frame(matrix(NA, 3, ncol(opafy23)))
+colnames(extra_end) <- colnames(opafy23)
+extra_end$REGIONF <- "Caribbean"
+
+opafy23 <- rbind(opafy23, extra_end)
+
+opafy23 <- opafy23 |>  arrange(REGIONF)
+opafy23$id <- seq(1, nrow(opafy23))
+opafy23 <- opafy23|> 
+  slice(1:73)
+
+
+
+
+label_opafy23 <- opafy23
+number_of_bar <- nrow(label_opafy23)
+angle <-  90 - 360 * (label_opafy23$id-0.5) /number_of_bar
+label_opafy23$hjust <-ifelse(angle < -90, 1, 0)
+label_opafy23$angle <-ifelse(angle < -90, angle+180, angle)
+
+
+
+
+base_opafy23 <- opafy23 |>  
+  group_by(REGIONF)|> 
+  summarize(start=min(id)-2, end=max(id) - 4) |> 
+  rowwise() |> 
+  mutate(title=mean(c(start, end)))
+
+anglesgroup <- data.frame(REGIONF = c("Caribbean", "Midwest", "Northeast","Pacific", "South"),
+                          angle = c(85+270, 13.56+270, -78+90, 37+270, -30+90))
+
+base_opafy23 <- base_opafy23 |> 
+  right_join(anglesgroup, by = "REGIONF")
+
+
+
+
+grid_data <- base_opafy23
+grid_data$end <- grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
+grid_data$start <- grid_data$start - 1
+grid_data <- grid_data[-1,]
+
+
+
+
+
+plot <- ggplot(opafy23, aes(x=id, y=average_sentence, fill=REGIONF))+
+  geom_bar(stat="identity")+
+  geom_segment(data=grid_data, aes(x = end, y = 9, xend = start, yend = 9), colour = "black", alpha=1, size=0.3 , inherit.aes = FALSE )+
+  geom_segment(data=grid_data, aes(x = end, y = 6, xend = start, yend = 6), colour = "black", alpha=1, size=0.3 , inherit.aes = FALSE )+
+  geom_segment(data=grid_data, aes(x = end, y = 3, xend = start, yend = 3), colour = "black", alpha=1, size=0.3 , inherit.aes = FALSE )+
+  annotate("text", x = rep(min(opafy23$id)+3,3), y = c(3, 6, 9), label = c("3", "6", "9") , color="black", size=3 , angle=20, fontface="plain", hjust=1) +
+  ylim(-10,12)+
+  coord_polar(start=0)+
+  geom_text(data=label_opafy23, aes(x=id, y=average_sentence+1, label=districtF, hjust=hjust), color="black", fontface="bold",alpha=0.6, size=1.8, angle= label_opafy23$angle, inherit.aes = FALSE )+
+  geom_text(data=base_opafy23, aes(x = title, y = -2.5, label=REGIONF), fontface="bold", hjust=c(0.6,0.5,0.4,0.4,0.4), colour = "black", alpha=0.8, size=1.5, angle = base_opafy23$angle, fontface="bold", inherit.aes = FALSE)+
+  #geom_textsegment(data=base_opafy23, aes(x= start, y =-2, xend =end, yend = -2, label = REGIONF), colour="black", alpha=0.8, linewidth=0.6, size=2, inherit.aes=FALSE)+
+  geom_segment(data=base_opafy23, aes(x = start, y = -1, xend = end, yend = -1), colour = "black", alpha=0.8, linewidth=0.6 , inherit.aes = FALSE )+
+  labs(
+    title="Average Sentence of Tax Fraud by District/Region",
+    subtitle="Data From Top 50 Districts by Max Sentence"
+  )+
+  scale_fill_manual(values=c("#1b375d", "#5A708E","#EEB4B3", "#971D2C", "#701C2B"))+
+  theme_void(12)+
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),      # Adjust the margin to make in sort labels are not truncated!
+    text=element_text(family="serif"),
+    axis.ticks.y = element_blank(),
+    legend.position = "none"
+  ) 
+ 
+
+plot
+```
+
+```{r Data Management for Page X, Graph 2}
+oopafy23 <- fread("data/CSV2.csv") |> 
+  filter(OFFGUIDE == 16 | OFFGUIDE == 29, LOSS1 != 9999999997)|> 
+  mutate(SENTYEARS = SENTTCAP / 12,
+         Agebin = factor(YEARS,
+                            levels <- c("1", "2", "3", "4", "5", "6","7"),
+                            labels <- c("<21","21-25","26-30","31-35","36-40","41-50",">50")),
+         Education = factor(NEWEDUC,
+                            levels <- c("1","3","5","6"),
+                            labels <- c("Less Than H.S.", "H.S. Graduate","Some College","College Grad"))
+         ) |>
+  group_by(Agebin, Education) |> 
+  summarise(count = n(),
+            average_sentence = mean(SENTYEARS, na.rm=T),
+            average_loss = mean(LOSS1, na.rm=T)) |> 
+  ungroup() |> 
+  arrange(Education, desc(average_sentence)) |> 
+  mutate(
+    id=seq(1:24)
+  )
+educ_group <- oopafy23 |> 
+  arrange(desc(average_sentence))
+
+educ <- educ_group[[1,2]]
+
+
+
+empty_bar <- 3
+loss_to_add <- data.frame( matrix(NA, empty_bar*nlevels(oopafy23$Education), ncol(oopafy23)) )
+colnames(loss_to_add) <- colnames(oopafy23)
+loss_to_add$Education <- rep(levels(oopafy23$Education), each=empty_bar)
+oopafy23 <- rbind(oopafy23, loss_to_add)
+
+# extra_end <- data.frame(matrix(NA, 3, ncol(oopafy23)))
+# colnames(extra_end) <- colnames(oopafy23)
+# extra_end$Education <- "Less Than H.S."
+# 
+# oopafy23 <- rbind(oopafy23, extra_end)
+
+oopafy23 <- oopafy23 |>  arrange(Education)
+oopafy23$id <- seq(1, nrow(oopafy23))
+# oopafy23 <- oopafy23 |> 
+#   slice(1:53)
+
+
+
+
+
+label_oopafy23 <- oopafy23
+onumber_of_bar <- nrow(label_oopafy23)
+oangle <-  90 - 360 * (label_oopafy23$id-0.5) /onumber_of_bar
+label_oopafy23$hjust <-ifelse(oangle < -90, 1, 0)
+label_oopafy23$oangle <-ifelse(oangle < -90, oangle+180, oangle)
+
+
+
+
+base_oopafy23 <- oopafy23 |>  
+  group_by(Education)|> 
+  summarize(start=min(id), end=max(id)-3) |> 
+  rowwise() |> 
+  mutate(title=mean(c(start, end)))
+
+oanglesgroup <- data.frame(Education = c("Less Than H.S.", "H.S. Graduate", "Some College","College Grad"),
+                          oangle = c(55+270, -40+90, 50-90, -35+90))
+
+base_oopafy23 <- base_oopafy23 |> 
+   right_join(oanglesgroup, by = "Education")
+
+
+
+
+
+ogrid_data <- base_oopafy23
+ogrid_data$end <- ogrid_data$end[ c( nrow(ogrid_data), 1:nrow(ogrid_data)-1)] +1
+ogrid_data$start <- ogrid_data$start-1
+# ogrid_data[1,2] = -5
+# ogrid_data[1,3] = -2
+ogrid_data <- ogrid_data[-1,]
+
+
+
+
+plot <- ggplot(oopafy23, aes(x=id, y=average_sentence, fill=Education))+
+  geom_bar(stat="identity")+
+  geom_segment(data=ogrid_data, aes(x = end, y = 6, xend = start, yend = 6), colour = "black", alpha=1, size=0. , inherit.aes = FALSE )+
+  geom_segment(data=ogrid_data, aes(x = end, y = 4, xend = start, yend = 4), colour = "black", alpha=1, size=0.3 , inherit.aes = FALSE )+
+  geom_segment(data=ogrid_data, aes(x = end, y = 2, xend = start, yend = 2), colour = "black", alpha=1, size=0.3 , inherit.aes = FALSE )+
+  annotate("text", x = rep(min(oopafy23$id)-1,3), y = c(2, 4, 6), label = c("2", "4", "6") , color="black", size=3, fontface="plain", hjust=1) +
+  geom_bar(stat="identity")+
+  ylim(-7, 8)+
+  coord_polar(start=0)+
+  geom_text(data=label_oopafy23, aes(x=id, y=average_sentence+.5, label=Agebin, hjust=hjust), color="black", fontface="bold",alpha=0.6, size=1.8, angle= label_oopafy23$oangle, inherit.aes = FALSE )+
+  geom_textsegment(data=base_oopafy23, aes(x= start, y =-1, xend =end, yend = -1, label = Education), colour="black", alpha=0.8, linewidth=0, size=2, inherit.aes=FALSE)+
+ # geom_segment(data=base_oopafy23, aes(x = start, y = -.5, xend = end, yend = -.5), colour = "black", alpha=0.8, linewidth=0.6 , inherit.aes = FALSE)+
+  labs(
+    title="Average Sentence of Tax Fraud by Age",
+    subtitle="Grouped by Amount of Education"
+  )+
+  scale_fill_manual(values=c("#1b375d", "#5A708E","#EEB4B3", "#971D2C"))+
+  theme_void(12)+
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),      # Adjust the margin to make in sort labels are not truncated!
+    text=element_text(family="serif"),
+    axis.ticks.y = element_blank(),
+    legend.position="none"
+  ) 
+ 
+#angle = base_oopafy23$oangle
+# (data=base_oopafy23, aes(x = title, y = -1.8, label=Education), fontface="bold", hjust=c(0.5,0.5,0.5,0.5), colour = "black", alpha=0.8, # size=2, fontface="plain", inherit.aes = FALSE)
+plot
+```
+
+## Row {height=25%}
+
+### Column
+
+The length of sentence isn't necessarily correlated by district median income. East Washington and Connecticut had the greatest average sentence. For further analysis, average sentence should take population of districts into account. 
+
+Question: What district in the U.S. gets most heavily sentenced?
+
+### Column
+
+The longest sentence is held by individuals with `r educ` education, between the ages of 31-35. Among sentenced individuals who graduated college, the longest sentence is held by the age group 26-30, likely right out of college. 
+
+Question: What age group has, on average, the greatest sentence for tax fraud? What is this group's education?
+
+# Criminal Investigation by Status or Disposition
+
+## Row {height = 10%}
+
+This page focuses on data from the SOI Tax Stats – Criminal Investigation Program, by Status or Disposition from 2010 to 2023. The first waffle chart displays raw counts, showing the total number of IRS CI actions over time. This shows the true volume and scale of enforcement activity to show which years had more investigative or prosecutorial effort. The second waffle chart presents percent-of-year data that compares the proportion of each case disposition within a given year. This shows shifts in the types of actions pursued, such as increases in incarcerations or declines in prosecutions, regardless of overall volume.
+
+Question: How has conviction, incarceration, or prosecution rates from the IRS changed over time?
+
+## Row {height = 75%}
+
+```{r}
+file_paths <- list(
+  "2010" = "data/data/10db18ci.xls",
+  "2011" = "data/data/11db18ci.xls",
+  "2012" = "data/data/12db18ci.xls",
+  "2013" = "data/data/13db18ci.xls",
+  "2014" = "data/data/14db18ci.xls",
+  "2015" = "data/data/15db18ci.xls",
+  "2016" = "data/data/16db18aci.xls",
+  "2017" = "data/data/17db18ci.xls",
+  "2018" = "data/data/18db18ci.xls",
+  "2019" = "data/data/19dbs03t24ci.xlsx",
+  "2020" = "data/data/20dbs03t24ci.xlsx",
+  "2021" = "data/data/21dbs03t24ci.xlsx",
+  "2022" = "data/data/22dbs03t24ci.xlsx",
+  "2023" = "data/data/23dbs03t26ci.xlsx"
+)
+
+
+target_rows <- c(
+  "investigations initiated",
+  "investigations completed",
+  "referrals for prosecution",
+  "indictments and informations",
+  "convictions",
+  "sentenced",
+  "incarcerated",
+  "percentage of those sentenced who were incarcerated"
+)
+
+clean_colnames <- c(
+  "Status or disposition", 
+  "Total", 
+  "Legal source tax crimes", 
+  "Illegal source financial crimes", 
+  "Narcotics-related financial crimes"
+)
+
+read_and_clean_file <- function(path, year) {
+  tryCatch({
+    df <- read_excel(path, skip = 2, col_names = FALSE)
+
+df <- df %>%
+  mutate(row_key = str_squish(str_replace_all(tolower(as.character(...1)), "[\r\n]", " "))) %>%
+  filter(str_detect(row_key, paste0("\\b(", paste(target_rows, collapse = "|"), ")\\b"))) %>%
+  select(1:5) %>%
+  mutate(across(everything(), as.character)) %>%
+  mutate(
+    `Status or disposition` = str_trim(gsub("\\[.*?\\]", "", ...1)),
+    `Total` = ...2,
+    `Legal source tax crimes` = ...3,
+    `Illegal source financial crimes` = ...4,
+    `Narcotics-related financial crimes` = ...5) %>%
+  select(all_of(clean_colnames)) %>%
+  mutate(across(-`Status or disposition`, ~ as.numeric(gsub(",", "", .))),
+         Year = as.integer(year)) %>%
+  filter(if_any(c("Total", 
+                  "Legal source tax crimes", 
+                  "Illegal source financial crimes", 
+                  "Narcotics-related financial crimes"), ~ !is.na(.)))}, 
+error = function(e) {
+  message(paste("Skipping file:", path, "| Error:", e$message))
+  return(NULL)
+  })
+}
+
+ci_data <- imap_dfr(file_paths, read_and_clean_file)
+
+write.csv(ci_data, "data/combined_CI_2010_2023.csv", row.names = FALSE)
+```
+
+```{r}
+#| fig.width: 12
+#| fig.asp: 0.9
+
+plot_data <- ci_data %>%
+  filter(!is.na(Year)) %>%
+  mutate(`Status or disposition` = case_when(
+    str_detect(`Status or disposition`, regex("indictments?\\s+and\\s+informations?", ignore_case = TRUE)) ~ "Indictments and Informations",
+    TRUE ~ `Status or disposition`
+  )) %>%
+  group_by(Year, `Status or disposition`) %>%
+  summarise(
+    Total = sum(Total, na.rm = TRUE),
+    Legal = sum(`Legal source tax crimes`, na.rm = TRUE),
+    Illegal = sum(`Illegal source financial crimes`, na.rm = TRUE),
+    Narcotics = sum(`Narcotics-related financial crimes`, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+make_column_trace <- function(value_col) {
+  lapply(unique(plot_data$`Status or disposition`), function(status) {
+    sub <- plot_data %>% filter(`Status or disposition` == status)
+    list(
+      x = sub[[value_col]],
+      y = sub$Year,
+      name = status,
+      type = 'bar',
+      orientation = 'h',
+      hoverinfo = 'text',
+      text = paste0(
+        "Year: ", sub$Year,
+        "<br>Status: ", status,
+        "<br>", value_col, ": ", sub[[value_col]]
+      ),
+      textposition = "none",  
+      visible = TRUE
+    )
+  })
+}
+
+columns <- c("Total", "Legal", "Illegal", "Narcotics")
+all_traces <- lapply(columns, make_column_trace)
+
+traces_flat <- unlist(all_traces, recursive = FALSE)
+visible_flags <- rep(FALSE, length(traces_flat))
+visible_flags[1:length(all_traces[[1]])] <- TRUE 
+
+fig <- plot_ly()
+
+for (i in seq_along(traces_flat)) {
+  t <- traces_flat[[i]]
+  fig <- fig %>%
+    add_trace(
+      x = t$x,
+      y = t$y,
+      name = t$name,
+      type = t$type,
+      orientation = t$orientation,
+      hoverinfo = t$hoverinfo,
+      text = t$text,
+      textposition = t$textposition,
+      visible = visible_flags[i],
+      showlegend = TRUE
+    )
+}
+
+dropdown_buttons <- lapply(seq_along(columns), function(i) {
+  vis <- rep(FALSE, length(traces_flat))
+  idx <- ((i - 1) * length(all_traces[[1]]) + 1):(i * length(all_traces[[1]]))
+  vis[idx] <- TRUE
+  list(
+    method = "update",
+    args = list(list(visible = vis)),
+    label = columns[i]
+  )
+})
+
+fig <- fig %>%
+  layout(
+    title = list(
+      text = "CI by Year Raw Count",
+      x = 0.5
+    ),
+    barmode = "stack",
+    yaxis = list(title = "Year", type = "category", autorange = "reversed"),
+    xaxis = list(
+      title = "Number of Cases",
+      range = c(0, 3000)  
+    ),
+    updatemenus = list(
+      list(
+        buttons = dropdown_buttons,
+        direction = "down",
+        showactive = TRUE,
+        x = 0.05,
+        xanchor = "left",
+        y = 1.15,
+        yanchor = "top"
+      )
+    ),
+    colorway = c("#1B375D", "#EEB4B3", "#701C2B", "#32496E", "#495B80", "#616E92", "#7A819F","#8395AF", "#DD6B69", "#C6526A", "#971D2C")
+  )
+
+fig
+```
+
+```{r}
+#| fig.width: 12
+#| fig.asp: 0.9
+
+plot_data <- ci_data %>%
+  filter(!is.na(Year)) %>%
+  mutate(`Status or disposition` = case_when(
+    str_detect(`Status or disposition`, regex("indictments?\\s+and\\s+informations?", ignore_case = TRUE)) ~ "Indictments and Informations",
+    TRUE ~ `Status or disposition`
+  )) %>%
+  group_by(Year, `Status or disposition`) %>%
+  summarise(
+    Total = sum(Total, na.rm = TRUE),
+    Legal = sum(`Legal source tax crimes`, na.rm = TRUE),
+    Illegal = sum(`Illegal source financial crimes`, na.rm = TRUE),
+    Narcotics = sum(`Narcotics-related financial crimes`, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+normalize_column <- function(df, column) {
+  df %>%
+    group_by(Year) %>%
+    mutate(pct = !!sym(column) / sum(!!sym(column), na.rm = TRUE) * 100) %>%
+    ungroup()
+}
+
+make_percent_trace <- function(column_name) {
+  df <- normalize_column(plot_data, column_name)
+  lapply(unique(df$`Status or disposition`), function(status) {
+    sub <- df %>% filter(`Status or disposition` == status)
+    list(
+      x = sub$pct,
+      y = sub$Year,
+      name = status,
+      type = 'bar',
+      orientation = 'h',
+      hoverinfo = 'text',
+      text = paste0(
+        "Year: ", sub$Year,
+        "<br>Status: ", status,
+        "<br>", column_name, ": ", round(sub$pct, 1), "%"
+      ),
+      textposition = "none",
+      visible = TRUE
+    )
+  })
+}
+
+columns <- c("Total", "Legal", "Illegal", "Narcotics")
+all_traces <- lapply(columns, make_percent_trace)
+
+traces_flat <- unlist(all_traces, recursive = FALSE)
+visible_flags <- rep(FALSE, length(traces_flat))
+visible_flags[1:length(all_traces[[1]])] <- TRUE  
+
+fig <- plot_ly()
+
+for (i in seq_along(traces_flat)) {
+  t <- traces_flat[[i]]
+  fig <- fig %>%
+    add_trace(
+      x = t$x,
+      y = t$y,
+      name = t$name,
+      type = t$type,
+      orientation = t$orientation,
+      hoverinfo = t$hoverinfo,
+      text = t$text,
+      textposition = t$textposition,
+      visible = visible_flags[i],
+      showlegend = TRUE
+    )
+}
+
+dropdown_buttons <- lapply(seq_along(columns), function(i) {
+  vis <- rep(FALSE, length(traces_flat))
+  vis[((i - 1) * length(all_traces[[1]]) + 1):(i * length(all_traces[[1]]))] <- TRUE
+  list(
+    method = "update",
+    args = list(list(visible = vis)),
+    label = columns[i]
+  )
+})
+
+fig <- fig %>%
+  layout(
+    title = list(
+      text = "CI by Percent-of-year",
+      x = 0.5
+    ),
+    barmode = "stack",
+    yaxis = list(title = "Year", type = "category", autorange = "reversed"),
+    xaxis = list(
+      title = "Percentage of Cases per Year",
+      range = c(0, 100)
+    ),
+    updatemenus = list(
+      list(
+        buttons = dropdown_buttons,
+        direction = "down",
+        showactive = TRUE,
+        x = 0.05,
+        xanchor = "left",
+        y = 1.15,
+        yanchor = "top"
+      )
+    ),
+    colorway = c("#1B375D", "#EEB4B3", "#701C2B", "#32496E", "#495B80", "#616E92", "#7A819F","#8395AF", "#DD6B69", "#C6526A", "#971D2C")
+  )
+
+fig
+```
+
+
+# About
+
+## Row {height = 15%}
+
+- This dashboard was created using [Quarto](https://quarto.org/) in [RStudio](https://posit.co/), and the [R Language and Environment](https://cran.r-project.org/).
+
+- The datasets used to create this dashboard was downloaded from:
+
+[Quarterly Sentencing Updates](https://www.ussc.gov/research/data-reports/quarter/quarterly-sentencing-updates),
+[2024 Federal Sentence Statistics](https://www.ussc.gov/research/data-reports/geography/2024-federal-sentencing-statistics),
+[Commission Datafiles](https://www.ussc.gov/research/datafiles/commission-datafiles)
+
+## Row {height = 75%}
+Software Citations include:
+
+Arnold J (2024). _ggthemes: Extra Themes, Scales and Geoms for 'ggplot2'_. R package version 5.1.0, <https://CRAN.R-project.org/package=ggthemes>.
+
+Bache S, Wickham H (2022). _magrittr: A Forward-Pipe Operator for R_. R package version 2.0.3, <https://CRAN.R-project.org/package=magrittr>
+
+Barrett T, Dowle M, Srinivasan A, Gorecki J, Chirico M, Hocking T, Schwendinger B (2024). _data.table: Extension of `data.frame`_. R package version 1.16.4, <https://CRAN.R-project.org/package=data.table>..
+
+Cameron A, van den Brand T (2025). _geomtextpath: Curved Text in 'ggplot2'_. R package version 0.1.5,
+  <https://CRAN.R-project.org/package=geomtextpath>.
+
+C. Sievert. Interactive Web-Based Data Visualization with R, plotly, and shiny. Chapman and
+  Hall/CRC Florida, 2020.
+
+Dancho M, Vaughan D (2025). _tidyquant: Tidy Quantitative Financial Analysis_. R package version 1.0.11, <https://CRAN.R-project.org/package=tidyquant>.
+
+Firke S (2024). _janitor: Simple Tools for Examining and Cleaning Dirty Data_. R package version 2.2.1,<https://CRAN.R-project.org/package=janitor>.
+
+Neuwirth E (2022). _RColorBrewer: ColorBrewer Palettes_. R package version 1.1-3, <https://CRAN.R-project.org/package=RColorBrewer>.
+
+Rinker, T. W. & Kurkiewicz, D. (2017). pacman: Package Management for R. version 0.5.0. Buffalo, New York. http://github.com/trinker/pacman
+
+
+Kunst J (2022). _highcharter: A Wrapper for the 'Highcharts' Library_. R package version 0.9.4,
+  <https://CRAN.R-project.org/package=highcharter>.
+
+Ooms J (2024). _js: Tools for Working with JavaScript in R_. R package version 1.2.1,
+  <https://CRAN.R-project.org/package=js>.
+
+Wickham H (2023). _stringr: Simple, Consistent Wrappers for Common String Operations_. R package version 1.5.1, <https://CRAN.R-project.org/package=stringr>.
+
+Wickham H, Averick M, Bryan J, Chang W, McGowan LD, François R, Grolemund G, Hayes A, Henry L, Hester J, Kuhn M,Pedersen TL, Miller E, Bache SM, Müller K, Ooms J, Robinson D, Seidel DP, Spinu V, Takahashi K, Vaughan D, Wilke C, Woo K, Yutani H (2019). “Welcome to the tidyverse.” _Journal of Open Source Software_, *4*(43), 1686. doi:10.21105/joss.01686 <https://doi.org/10.21105/joss.01686>.
+
+Wickham H, François R, Henry L, Müller K, Vaughan D (2023). _dplyr: A Grammar of Data Manipulation_. R package version 1.1.4, <https://CRAN.R-project.org/package=dplyr>.
+
+Wickham H, Henry L (2023). _purrr: Functional Programming Tools_. R package version 1.0.2,
+  <https://CRAN.R-project.org/package=purrr>.
+
+Wickham H, Bryan J (2023). _readxl: Read Excel Files_. R package version 1.4.3,
+  <https://CRAN.R-project.org/package=readxl>.
+
+Wickham H, Hester J, Bryan J (2024). _readr: Read Rectangular Text Data_. R package version 2.1.5, <https://CRAN.R-project.org/package=readr>.
+
+Zhu H (2024). _kableExtra: Construct Complex Table with 'kable' and Pipe Syntax_. R package
+  version 1.4.0, <https://CRAN.R-project.org/package=kableExtra>.
+
+Wickham H, Bryan J (2025). _readxl: Read Excel Files_. R package version 1.4.5,
+  <https://CRAN.R-project.org/package=readxl>. 
+
+C. Sievert. Interactive Web-Based Data Visualization with R, plotly, and shiny. Chapman and
+  Hall/CRC Florida, 2020. <https://plotly-r.com> 
+
+<script>
+  // Create an audio object for the bald eagle sound
+  const eagleSound = new Audio('assets/eagle.mp3');
+
+  // Function to play the sound
+  function playEagleSound() {
+    eagleSound.play();
+  }
+
+  // Event listener for page changes
+  document.addEventListener('DOMContentLoaded', () => {
+    // Trigger sound when the page loads or changes
+    playEagleSound();
+
+    // Optional: Detect navigation within single-page apps or dashboards
+    document.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        setTimeout(playEagleSound, 500); // Play sound after navigating
+      });
+    });
+  });
+</script>
+
+
+<!-- Embed audio element -->
+<script>
+  // Create an audio object for the song
+  const aboutSong = new Audio('assets/fergie.mp3');
+
+  // Function to play the song
+  function playAboutSong() {
+    aboutSong.currentTime = 0; // Reset song to the beginning
+    aboutSong.play(); // Play the song
+  }
+
+  // Event listener to detect page navigation
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        // Check if the link corresponds to the "About" slide
+        const slideName = link.getAttribute('href'); // Get the linked page
+        if (slideName && slideName.toLowerCase().includes('about')) {
+          setTimeout(playAboutSong, 500); // Play the song after navigation
+        }
+      });
+    });
+  });
+</script>
